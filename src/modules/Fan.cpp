@@ -1,11 +1,13 @@
 #include "Fan.h"
 #include "Logger.h"
 
+#include <unordered_map>
+
 #define CHECK(call)                                                            \
   {                                                                            \
     const CC1101::Status state = call;                                         \
     if (state != CC1101::STATUS_OK) {                                          \
-      Logger::Error(String("FATAL: ") + #call + " returned " + (int)state);    \
+      Logger::Error("FATAL: %s returned %d", #call, state);                    \
       return false;                                                            \
     }                                                                          \
   }
@@ -14,12 +16,26 @@ constexpr double RadioFrequency = 433.92;
 constexpr double BitrateKbps = 2.5;
 constexpr int8_t OutputPower = -5;
 
-constexpr std::array<uint8_t, 9> MessageHeader{0x0e, 0x88, 0x8e, 0x8e, 0xee, 0xe8, 0x8e, 0xee, 0xe8};
+constexpr std::array<uint8_t, 9> MessageHeader{0x0e, 0x88, 0x8e, 0x8e, 0xee,
+                                               0xe8, 0x8e, 0xee, 0xe8};
 constexpr size_t MessageSize = 13;
 constexpr uint8_t MessageSendCount = 5;
 
-
 namespace HAL {
+
+const std::unordered_map<Fan::Command, uint32_t> CommandMap{
+    {Fan::Command::FanToggle, 0x888888e8},
+    {Fan::Command::FanDirection, 0x888e8888},
+    {Fan::Command::FanSpeed1, 0x8888eee8},
+    {Fan::Command::FanSpeed2, 0x8888e888},
+    {Fan::Command::FanSpeed3, 0x8888e8e8},
+    {Fan::Command::FanSpeed4, 0x888e88e8},
+    {Fan::Command::FanSpeed5, 0x888ee888},
+    {Fan::Command::FanSpeed6, 0x888e8ee8},
+    {Fan::Command::LightToggle, 0x88888ee8},
+    {Fan::Command::LightIntensity, 0x888eeee8},
+};
+
 Fan::Fan(const uint8_t id)
     : Module(id), m_characteristic("0001", BLEWrite), m_cc1101(10) {}
 
@@ -37,8 +53,6 @@ bool Fan::Setup() {
   m_cc1101.setOutputPower(OutputPower);
   m_cc1101.setPacketLengthMode(CC1101::PKT_LEN_MODE_FIXED, MessageSize);
   m_cc1101.setAddressFilteringMode(CC1101::ADDR_FILTER_MODE_NONE);
-  // CHECK(m_cc1101.setPreambleLength(16));
-  // CHECK(m_cc1101.setSyncWord(0x3906));
   m_cc1101.setSyncMode(CC1101::SYNC_MODE_NO_PREAMBLE);
   m_cc1101.setCrc(false);
   m_cc1101.setDataWhitening(false);
@@ -46,9 +60,7 @@ bool Fan::Setup() {
   return true;
 }
 
-bool Fan::Start() {
-  return true;
-}
+bool Fan::Start() { return true; }
 
 bool Fan::IsReady() const { return true; }
 
@@ -57,30 +69,25 @@ void Fan::Update() {
     return;
   }
 
-  const Query message = m_characteristic.value();
-  Logger::Info(String("[Fan] Received message: 0x") +
-               String(static_cast<uint32_t>(message), HEX));
+  const Command command = m_characteristic.value();
+  Logger::Info("[Fan] Received command: %d", command);
+
+  const auto it = CommandMap.find(command);
+  if (it == CommandMap.end()) {
+    Logger::Error("[Fan] Unknown command!");
+    return;
+  }
 
   std::array<uint8_t, MessageSize> buffer{};
   memcpy(buffer.data(), MessageHeader.data(), MessageHeader.size());
-  memcpy(buffer.data() + MessageHeader.size(), &message, sizeof(message));
+  memcpy(buffer.data() + MessageHeader.size(), &it->second, sizeof(it->second));
 
-  String debugStr;
-  for (size_t i = 0; i < buffer.size(); ++i) {
-    debugStr += String(buffer[i], HEX);
-    if (i + 1 < MessageSize) {
-      debugStr += ' ';
-    }
-  }
-
-  Logger::Debug(debugStr);
   Logger::Info("Transmitting ... ");
-  for (uint8_t sentCount = 0; sentCount < MessageSendCount; sentCount++)
-  {
-    const CC1101::Status status = m_cc1101.transmit(buffer.data(), buffer.size());
-    if (status != CC1101::STATUS_OK)
-    {
-      Logger::Error(status);
+  for (uint8_t sentCount = 0; sentCount < MessageSendCount; sentCount++) {
+    const CC1101::Status status =
+        m_cc1101.transmit(buffer.data(), buffer.size());
+    if (status != CC1101::STATUS_OK) {
+      Logger::Error("Transmission error: %d", status);
     }
 
     delayMicroseconds(2500);

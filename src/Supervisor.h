@@ -28,11 +28,11 @@ public:
     const uint8_t nextId = m_modules.size();
     std::unique_ptr<Module> mod = std::make_unique<T>(nextId);
     if (!mod->Setup()) {
-      Logger::Error((String)"Unable to register module: " + mod->Name());
+      Logger::Error("Unable to register module: %s", mod->Name());
       return;
     }
 
-    Logger::Info((String)"Registered module: " + mod->Name() + " " + nextId);
+    Logger::Info("Registered module: %s (%d)", mod->Name(), nextId);
     m_modules.push_back(std::move(mod));
   }
 

@@ -40,7 +40,7 @@ void Intercom::Update() {
 }
 
 void Intercom::_onMessage(const uint32_t value) {
-  Logger::Debug(String("[Intercom] Received message: ") + String(value, HEX));
+  Logger::Debug("[Intercom] Received message: %s", String(value, HEX).c_str());
 
   if (value != DoorMessageValue) {
     Logger::Error("[Intercom] Unknown message");

@@ -24,8 +24,7 @@ void Test::Update() {
     return;
   }
 
-  Logger::Info(String("[Test] Received message: ") +
-               String(m_characteristic.value(), HEX));
+  Logger::Info("[Test] Received message: %s", String(m_characteristic.value(), HEX).c_str());
 
   digitalWrite(LED_BUILTIN, HIGH);
   delay(500);

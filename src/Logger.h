@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Arduino.h>
+#include <stdarg.h>
 
 class Logger
 {
@@ -13,33 +14,47 @@ public:
 
   static LogLevel logLevel;
 
-  template<typename T>
-  static void Debug(T msg) {
+  static void Debug(const char* format, ...) {
     if (logLevel > LogLevel::Debug) {
       return;
     }
 
-    Serial.print("[DEBUG] ");
-    Serial.println(msg);
+    va_list args;
+    va_start(args, format);
+    print("[DEBUG] ", format, args);
+    va_end(args);
   };
 
-  template<typename T>
-  static void Info(T msg) {
+  static void Info(const char* format, ...) {
     if (logLevel > LogLevel::Info) {
       return;
     }
 
-    Serial.print("[INFO] ");
-    Serial.println(msg);
+    va_list args;
+    va_start(args, format);
+    print("[INFO] ", format, args);
+    va_end(args);
   };
 
-  template<typename T>
-  static void Error(T msg) {
+  static void Error(const char* format, ...) {
     if (logLevel > LogLevel::Error) {
       return;
     }
 
-    Serial.print("[ERROR] ");
-    Serial.println(msg);
+    va_list args;
+    va_start(args, format);
+    print("[ERROR] ", format, args);
+    va_end(args);
   };
+
+private:
+  static void print(const char* preface, const char* format, va_list args) {
+    const auto bufferSize = vsnprintf(nullptr, 0, format, args);
+    std::string buffer(bufferSize, 0);
+
+    vsprintf(&buffer[0], format, args);
+
+    Serial.print(preface);
+    Serial.println(buffer.c_str());
+  }
 };

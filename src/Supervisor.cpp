@@ -52,7 +52,7 @@ void Supervisor::_init() {
   // start advertising
   BLE.advertise();
   Logger::Info("Started advertising.");
-  Logger::Info("MAC: " + BLE.address());
+  Logger::Info("MAC: %s", BLE.address().c_str());
 
   _setState(State::WaitingForConnection);
   _updateLed();
@@ -65,8 +65,7 @@ void Supervisor::_setState(State state) {
     return;
   }
 
-  Logger::Debug(String("State update: ") + (uint8_t)m_state + " " +
-                (uint8_t)state);
+  Logger::Debug("State update: %d -> %d", m_state, state);
   m_state = state;
 }
 
@@ -81,7 +80,7 @@ void Supervisor::_updateConnection() {
   m_central = central;
   _setState(State::Connected);
 
-  Logger::Info(String("Connected to central: ") + m_central.address());
+  Logger::Info("Connected to central: %s", m_central.address().c_str());
 }
 
 void Supervisor::_updateLed() {
