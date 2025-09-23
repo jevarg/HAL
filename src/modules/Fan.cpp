@@ -23,17 +23,17 @@ constexpr uint8_t MessageSendCount = 5;
 
 namespace HAL {
 
-const std::unordered_map<Fan::Command, uint32_t> CommandMap{
-    {Fan::Command::FanToggle, 0x888888e8},
-    {Fan::Command::FanDirection, 0x888e8888},
-    {Fan::Command::FanSpeed1, 0x8888eee8},
-    {Fan::Command::FanSpeed2, 0x8888e888},
-    {Fan::Command::FanSpeed3, 0x8888e8e8},
-    {Fan::Command::FanSpeed4, 0x888e88e8},
-    {Fan::Command::FanSpeed5, 0x888ee888},
-    {Fan::Command::FanSpeed6, 0x888e8ee8},
-    {Fan::Command::LightToggle, 0x88888ee8},
-    {Fan::Command::LightIntensity, 0x888eeee8},
+const std::unordered_map<Fan::Command, std::array<uint8_t, 4>> CommandMap{
+    {Fan::Command::FanToggle, {0x88, 0x88, 0x88, 0xe8}},
+    {Fan::Command::FanDirection, {0x88, 0x8e, 0x88, 0x88}},
+    {Fan::Command::FanSpeed1, {0x88, 0x88, 0xee, 0xe8}},
+    {Fan::Command::FanSpeed2, {0x88, 0x88, 0xe8, 0x88}},
+    {Fan::Command::FanSpeed3, {0x88, 0x88, 0xe8, 0xe8}},
+    {Fan::Command::FanSpeed4, {0x88, 0x8e, 0x88, 0xe8}},
+    {Fan::Command::FanSpeed5, {0x88, 0x8e, 0xe8, 0x88}},
+    {Fan::Command::FanSpeed6, {0x88, 0x8e, 0x8e, 0xe8}},
+    {Fan::Command::LightToggle, {0x88, 0x88, 0x8e, 0xe8}},
+    {Fan::Command::LightIntensity, {0x88, 0x8e, 0xee, 0xe8}},
 };
 
 Fan::Fan(const uint8_t id)
@@ -80,9 +80,14 @@ void Fan::Update() {
 
   std::array<uint8_t, MessageSize> buffer{};
   memcpy(buffer.data(), MessageHeader.data(), MessageHeader.size());
-  memcpy(buffer.data() + MessageHeader.size(), &it->second, sizeof(it->second));
+  memcpy(buffer.data() + MessageHeader.size(), it->second.data(),
+         it->second.size());
 
-  Logger::Info("Transmitting ... ");
+  String debug;
+  for (uint8_t c : buffer) {
+    debug += String(c, HEX);
+  }
+
   for (uint8_t sentCount = 0; sentCount < MessageSendCount; sentCount++) {
     const CC1101::Status status =
         m_cc1101.transmit(buffer.data(), buffer.size());
