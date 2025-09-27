@@ -14,7 +14,7 @@ void setup() {
   Logger::logLevel = Logger::LogLevel::Debug;
 
   Serial.begin(9600);
-  while (!Serial) {}
+  // while (!Serial) {}
   delay(1000);
 
   Logger::Info("Let's get started!");

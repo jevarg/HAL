@@ -12,6 +12,7 @@
     }                                                                          \
   }
 
+constexpr const char* CharacteristicId = "0ffd20c8-7ab7-49a3-aa50-1608ab03bc06";
 constexpr double RadioFrequency = 433.92;
 constexpr double BitrateKbps = 2.5;
 constexpr int8_t OutputPower = -5;
@@ -37,7 +38,7 @@ const std::unordered_map<Fan::Command, std::array<uint8_t, 4>> CommandMap{
 };
 
 Fan::Fan(const uint8_t id)
-    : Module(id), m_characteristic("0001", BLEWrite), m_cc1101(10) {}
+    : Module(id), m_characteristic(CharacteristicId, BLEWrite), m_cc1101(10) {}
 
 const char *Fan::Name() { return "Fan"; }
 

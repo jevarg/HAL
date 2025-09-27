@@ -41,7 +41,7 @@ void Supervisor::_init() {
       ;
   }
 
-  BLE.setLocalName("ImBlue");
+  BLE.setLocalName("Arduino");
 
   for (const auto &it : m_modules) {
     BLEService &service = it->Service();
