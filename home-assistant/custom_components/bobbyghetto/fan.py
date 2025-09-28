@@ -1,4 +1,4 @@
-"""Demo fan platform that has a fake fan."""
+"""Ceiling fan using HAL protocol."""
 
 from __future__ import annotations
 
@@ -8,11 +8,10 @@ import math
 from typing import Any
 from uuid import UUID
 
-from homeassistant.util.percentage import percentage_to_ranged_value, ranged_value_to_percentage
+from homeassistant.util.percentage import percentage_to_ranged_value, int_states_in_range
 
 from . import HALClient, HALClientConfigEntry
 from homeassistant.components.fan import DIRECTION_FORWARD, FanEntity, FanEntityFeature
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
@@ -39,9 +38,12 @@ class FanCommand(IntEnum):
     LIGHT_INTENSITY = auto()
     
     @staticmethod
+    def speed_range() -> tuple[FanCommand, FanCommand]:
+        return (FanCommand.FAN_SPEED_1, FanCommand.FAN_SPEED_6)
+
+    @staticmethod
     def from_speed(percentage: int) -> FanCommand:
-        speed_range = (FanCommand.FAN_SPEED_1, FanCommand.FAN_SPEED_6)
-        value = math.ceil(percentage_to_ranged_value(speed_range, percentage))
+        value = math.ceil(percentage_to_ranged_value(FanCommand.speed_range(), percentage))
         
         return FanCommand(value)
 
@@ -73,11 +75,12 @@ class CeilingFan(FanEntity):
         self._hal: HALClient = hal
         self._unique_id: str = unique_id
         self._attr_name: str = name
+
         self._attr_supported_features = SUPPORTED_FEATURES
         self._percentage: int = 0
         self._prev_percentage: int = 100
-        self._direction: str | None = None
-        self._preset_modes = None        
+
+        self._preset_modes = None
         self._direction = DIRECTION_FORWARD
 
     @property
@@ -88,37 +91,44 @@ class CeilingFan(FanEntity):
     @property
     def percentage(self) -> int | None:
         """Return the current speed."""
+        _LOGGER.debug("percentage=%d", self._percentage)
         return self._percentage
 
     @property
     def speed_count(self) -> int:
         """Return the number of speeds the fan supports."""
-        return 6
+        return int_states_in_range(FanCommand.speed_range())
     
     @property
     def current_direction(self) -> str | None:
         """Fan direction."""
         return self._direction
     
+    @property
     def is_on(self) -> bool:
         return self._percentage > 0
     
     async def async_set_percentage(self, percentage: int) -> None:
         """Set the speed of the fan, as a percentage."""
-        
+        _LOGGER.debug("called async_set_percentage percentage=%d", percentage)
+
         if percentage == self._percentage:
             return
 
-        if self.is_on() and percentage == 0:
-            await self.async_toggle()
-            return
-        
         try:
-            command = FanCommand.from_speed(percentage)
+            command: FanCommand
+            if self.is_on and percentage == 0:
+                command = FanCommand.FAN_TOGGLE
+            else:
+                command = FanCommand.from_speed(percentage)
+
             await self._hal.write_characteristic(CHARACTERISTIC, command)
         except:
             _LOGGER.error("Failed to set fan speed", exc_info=True)
             return
+
+        if percentage > 0:
+            self._prev_percentage = self._percentage
 
         self._percentage = percentage
         self.async_write_ha_state()
@@ -130,38 +140,27 @@ class CeilingFan(FanEntity):
         **kwargs: Any,
     ) -> None:
         """Turn on the entity."""
-        if self.is_on():
-            return
-
-        await self.async_toggle()
+        _LOGGER.debug("called async_turn_on")
+        await self.async_set_percentage(self._prev_percentage)
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn off the entity."""
-        if not self.is_on():
-            return
-
-        await self.async_toggle()
+        _LOGGER.debug("called async_turn_off")
+        await self.async_set_percentage(0)
 
     async def async_toggle(self, **kwargs: Any) -> None:
         """Toggle the fan."""
-        new_value: int
-        if self.is_on():
-            self._prev_percentage = self._percentage
-            new_value = 0
+        _LOGGER.debug("called async_toggle")
+
+        if self.is_on:
+            await self.async_turn_off()
         else:
-            new_value = self._prev_percentage
-
-        try:
-            await self._hal.write_characteristic(CHARACTERISTIC, FanCommand.FAN_TOGGLE)
-        except:
-            _LOGGER.error("Failed to toggle. new_value=%s", new_value)
-            return
-
-        self._percentage = new_value
-        self.async_write_ha_state()
+            await self.async_turn_on()
 
     async def async_set_direction(self, direction: str) -> None:
         """Set the direction of the fan."""
+        _LOGGER.debug("called async_set_direction")
+
         if self._direction == direction:
             return
 
