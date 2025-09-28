@@ -1,13 +1,10 @@
-from asyncio import Lock
-from enum import IntEnum
 import logging
-from uuid import UUID
 
+from asyncio import Lock
+from uuid import UUID
 from bleak import BleakClient
 from bleak.backends.device import BLEDevice
-from bleak.exc import BleakError
 
-from homeassistant.components import bluetooth
 
 _LOGGER = logging.getLogger(__name__)
 

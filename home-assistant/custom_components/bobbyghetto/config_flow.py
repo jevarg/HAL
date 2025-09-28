@@ -1,7 +1,5 @@
 """Config flow for GenericBT integration."""
 
-from __future__ import annotations
-
 import logging
 from typing import Any
 
@@ -18,7 +16,7 @@ from homeassistant.config_entries import ConfigFlowResult
 from homeassistant.const import CONF_ADDRESS
 
 from .const import DOMAIN
-from .hal_client import HALClient
+from .hal.client import HALClient
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -37,8 +35,6 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self, discovery_info: BluetoothServiceInfoBleak
     ) -> ConfigFlowResult:
         """Handle the bluetooth discovery step."""
-        # if discovery_info.name != "Arduino":
-        #    return self.async_abort(reason="not_supported")
 
         await self.async_set_unique_id(discovery_info.address)
         self._abort_if_unique_id_configured()
